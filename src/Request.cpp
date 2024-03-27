@@ -370,4 +370,19 @@ void Request::init(std::string request)
     pct_decode();
     check_length();
 }
+void Request::clean(void)
+{
+    this->protocol.clear();
+    this->method.clear();
+    this->uri.clear();
+    this->headers.clear();
+    this->body.clear();
+    this->userinfo.clear();
+    this->host.clear();
+    this->port.clear();
+    this->path.clear();
+    this->query.clear();
+    this->fragment.clear();
+    this->errcode = 0;
+}
 Request::Request(){}

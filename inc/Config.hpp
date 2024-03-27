@@ -11,6 +11,7 @@
 
 class Server;
 
+
 // Config class
 //
 // this class is responsible for the final configuration of the server
@@ -22,8 +23,10 @@ class Config
 	public:
 
 		typedef std::map <std::string, std::vector <std::string> > _map;
-		typedef void (LocationInfo::*location_setter)(const std::vector <std::string>&);
+		typedef void (*location_setter)(const std::vector <std::string>&, LocationInfo*&);
 		typedef std::map <std::string, location_setter> location_setter_map;
+		typedef void (*server_setter)(const std::vector <std::string>&, Server*&);
+		typedef std::map <std::string, server_setter> server_setter_map;
 
 		std::string								get_error_page(const int key);
 		std::vector <Server *>					get_servers() const;
@@ -39,14 +42,12 @@ class Config
 		void									configure_port(_map& server, Server*& new_server, std::vector <std::string>& new_unique_values);
 		void									configure_server_names(_map& server, Server*& new_server, std::vector <std::string>& new_unique_values);
 		void									configure_host(_map& server, Server*& new_server, std::vector <std::string>& new_unique_values);
-		void									configure_access_log(_map& server, Server*& new_server);
-		void									configure_client_max_body_size(_map& server, Server*& new_server);
-		void									configure_locations(const _map& server, Server*& new_server);
 		location_setter_map::iterator			configure_cgi(std::string key, LocationInfo*& new_location);
 		location_setter_map::iterator			initialize_location(const std::string& name, const std::string& key, LocationInfo*& new_location);
+		void									configure_locations(const _map& server, Server*& new_server);
 
 		void									initialize_location_setters();
-		std::string								extract_location_name(const std::string& location);
+		void									initialize_server_setters();
 
 		std::vector <Server *>					_servers;
 		std::map <int, std::string>				_error_pages;
@@ -56,6 +57,7 @@ class Config
 		std::vector <std::string>				_unique_values;
 
 		location_setter_map						_location_setters;
+		server_setter_map						_server_setters;
 
 		Config(const Config& rhs);
 		Config &operator=(const Config& rhs);

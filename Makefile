@@ -26,9 +26,10 @@ SRCS   	= \
 		$(SRCS_DIR)/Director.cpp \
         $(SRCS_DIR)/Config.cpp \
         $(SRCS_DIR)/ConfigParser.cpp \
+        $(SRCS_DIR)/ConfigSetters.cpp \
         $(SRCS_DIR)/ConfigDispatcher.cpp \
         $(SRCS_DIR)/Utils.cpp \
-		$(SRCS_DIR)/main_config.cpp
+		$(SRCS_DIR)/main_server.cpp
 TESTS	= \
 		
 

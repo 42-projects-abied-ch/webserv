@@ -3,9 +3,20 @@
 #include <string>
 #include <vector>
 
-LocationInfo::LocationInfo() : _autoindex(false), _directory_listing_enabled(false), _is_cgi(false)
+LocationInfo::LocationInfo() 
 {
-
+	_path = "";
+	_autoindex = false; 
+	_root = "";
+	_index = "";
+	_return = "";
+	_alias = "";
+	_cgi_path = "";
+	_cgi_ext = std::vector<std::string>();
+	_allowed_methods = std::vector<std::string>(); 
+	_directory_listing_enabled = false;
+	_client_max_body_size = 4098;
+	_cgi = false;
 }
 
 LocationInfo::~LocationInfo()
@@ -18,12 +29,31 @@ LocationInfo::LocationInfo(const LocationInfo& rhs)
 	*this = rhs;
 }
 
+bool	LocationInfo::get_cgi() const
+{
+	return _cgi;
+}
+
+void	LocationInfo::set_cgi(bool cg)
+{
+	_cgi = cg;
+}
+
 LocationInfo&	LocationInfo::operator=(const LocationInfo& rhs)
 {
 	if (this != &rhs)
 	{
 		_path = rhs._path;
 		_autoindex = rhs._autoindex;
+		_root = rhs._root;
+		_index = rhs._index;
+		_return = rhs._return;
+		_alias = rhs._alias;
+		_cgi_path = rhs._cgi_path;
+		_cgi_ext = rhs._cgi_ext;
+		_allowed_methods = rhs._allowed_methods;
+		_directory_listing_enabled = rhs._directory_listing_enabled;
+		_client_max_body_size = rhs._client_max_body_size;
 	}
 	return (*this);
 }
@@ -33,28 +63,19 @@ std::string	LocationInfo::get_root() const
 	return _root;
 }
 
-void	LocationInfo::set_root(const std::vector <std::string>& root)
+void	LocationInfo::set_root(const std::string& rt)
 {
-	if (root.empty() == false)
-	{
-		_root = root[0];
-	}
+	_root = rt; 
 }
 
-bool	LocationInfo::autoindex_enabled() const
+bool	LocationInfo::get_autoindex() const
 {
 	return (_autoindex);
 }
 
-void	LocationInfo::set_autoindex(const std::vector <std::string>& autoindex)
+void	LocationInfo::set_autoindex(bool val)
 {
-	if (autoindex.empty() == false)
-	{
-		if (autoindex[0] == "enabled")
-		{
-			_autoindex = true;
-		}
-	}
+	_autoindex = val;
 }
 
 std::vector <std::string>	LocationInfo::get_allowed_methods() const
@@ -62,7 +83,7 @@ std::vector <std::string>	LocationInfo::get_allowed_methods() const
 	return _allowed_methods;
 }
 
-void	LocationInfo::set_allowed_methods(const std::vector <std::string>& allowed_methods)
+void	LocationInfo::set_allowed_methods(std::vector <std::string> allowed_methods)
 {
 	_allowed_methods = allowed_methods;
 }
@@ -72,25 +93,14 @@ bool	LocationInfo::directory_listing_enabled() const
 	return _directory_listing_enabled;
 }
 
-void	LocationInfo::set_directory_listing(const std::vector <std::string>& directory_listing_enabled)
+void	LocationInfo::set_directory_listing(bool directory_listing_enabled)
 {
-	if (directory_listing_enabled.empty() == false)
-	{
-		if (directory_listing_enabled[0] == "enabled")
-		{
-			_directory_listing_enabled = true;
-		}
-	}
+	_directory_listing_enabled = directory_listing_enabled;
 }
 
-std::string	LocationInfo::get_path() const
+bool	LocationInfo::get_directory_listing() const
 {
-	return _name;
-}
-
-void	LocationInfo::set_path(const std::string& name)
-{
-	_name = name;
+	return _directory_listing_enabled;
 }
 
 std::string LocationInfo::get_return() const
@@ -98,12 +108,9 @@ std::string LocationInfo::get_return() const
 	return _return;
 }
 
-void	LocationInfo::set_return(const std::vector <std::string>& r)
+void	LocationInfo::set_return(const std::string& ret)
 {
-	if (r.empty() == false)
-	{
-		_return = r[0];
-	}
+	_return = ret;
 }
 
 std::string	LocationInfo::get_alias() const
@@ -111,7 +118,7 @@ std::string	LocationInfo::get_alias() const
 	return _alias;
 }
 
-void	LocationInfo::set_alias(const std::vector <std::string>& a)
+void	LocationInfo::set_alias(const std::string &a)
 {
 	if (a.empty() == false)
 	{
@@ -119,12 +126,9 @@ void	LocationInfo::set_alias(const std::vector <std::string>& a)
 	}
 }
 
-void	LocationInfo::set_cgi_path(const std::vector <std::string>& p)
+void	LocationInfo::set_cgi_path(const std::string& p)
 {
-	if (p.empty() == false)
-	{
-		_cgi_path = p[0];
-	}
+	_cgi_path = p;
 }
 
 std::string	LocationInfo::get_cgi_path() const
@@ -132,15 +136,12 @@ std::string	LocationInfo::get_cgi_path() const
 	return _cgi_path;
 }
 
-void	LocationInfo::set_cgi_extension(const std::vector <std::string>& e)
+void	LocationInfo::set_cgi_extensions(std::vector<std::string> e)
 {
-	if (e.empty() == false)
-	{
-		_cgi_ext = e[0];
-	}
+	_cgi_ext = e;
 }
 
-std::string	LocationInfo::get_cgi_extension() const
+std::vector<std::string>	LocationInfo::get_cgi_extensions() const
 {
 	return _cgi_ext;
 }
@@ -150,19 +151,29 @@ int	LocationInfo::get_client_max_body_size() const
 	return _client_max_body_size;
 }
 
+void			LocationInfo::set_index_path(const std::string& loc)
+{
+	_index = loc;
+}
+
+std::string		LocationInfo::get_index_path() const
+{
+	return _index;
+}
+
 void	LocationInfo::set_client_max_body_size(int n)
 {
 	_client_max_body_size = n;
 }
 
-bool	LocationInfo::is_cgi() const
+std::string	LocationInfo::get_path() const
 {
-	return _is_cgi;
+	return _path;
 }
 
-void	LocationInfo::set_is_cgi(bool is_cgi)
+void	LocationInfo::set_path(const std::string& path)
 {
-	_is_cgi = is_cgi;
+	_path = path;
 }
 
 std::ostream& operator<<(std::ostream& os, const LocationInfo& rhs)
@@ -177,7 +188,7 @@ std::ostream& operator<<(std::ostream& os, const LocationInfo& rhs)
 	{
 		os << "\tdirectory listing: disabled" << std::endl;
 	}
-	if (rhs.autoindex_enabled() == true)
+	if (rhs.get_autoindex() == true)
 	{
 		os << "\tautoindex: enabled" << std::endl;
 	}

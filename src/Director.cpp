@@ -362,6 +362,14 @@ int	Director::read_from_client(int client_fd)
 	}
 	else if (num == -1)
 	{
+		if (FD_ISSET(client_fd, &write_fds))
+			FD_CLR(client_fd, &write_fds);
+		if (FD_ISSET(client_fd, &read_fds))
+			FD_CLR(client_fd, &read_fds);
+		if (client_fd == fdmax)
+			fdmax--;
+		nodes.erase(client_fd);
+		close(client_fd);
 		std::stringstream ss;
 		ss << "Error reading from socket: " << client_fd << std::endl;
 		Log::log(ss.str(), ERROR_FILE | STD_ERR);
@@ -370,10 +378,11 @@ int	Director::read_from_client(int client_fd)
 	else 
 	{
 		ci->set_time();
-		//std::cout << msg << std::endl;
 		try
 		{
 			Request	req;
+			req.init(msg);
+			memset(msg, 0, sizeof(msg));
 			ci->get_server()->create_response(req); 
 			FD_CLR(client_fd, &read_fds);
 			if (client_fd == fdmax)	fdmax--;
@@ -384,9 +393,7 @@ int	Director::read_from_client(int client_fd)
 		{
 			std::cerr << e.what() << '\n';
 		}
-		//std::cout << req << std::endl;
 	}
-
 	return 0;
 }
 
@@ -401,7 +408,7 @@ int	Director::write_to_client(int fd)
 	int				num_bytes;
 	ClientInfo*		cl = dynamic_cast<ClientInfo*>(nodes[fd]);
 
-	std::string content = cl->get_server()->response;
+	std::string content = cl->get_server()->get_response();
 	int sz = content.size();
 
 	if (sz < MSG_SIZE)
@@ -439,11 +446,12 @@ int	Director::write_to_client(int fd)
 		}
 		FD_SET(fd, &read_fds);
 		if (fd == fdmax) { fdmax=fd; }  
+		cl->get_server()->reset();
 	}
 	else
 	{
 		cl->set_time();
-		cl->get_server()->response = cl->get_server()->response.substr(num_bytes);
+		cl->get_server()->set_response(cl->get_server()->get_response().substr(num_bytes));
 	}
 	return (0);
 }

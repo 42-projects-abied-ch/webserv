@@ -18,8 +18,9 @@ class Request
 		Request(const Request& rhs);
 		Request&		operator=(const Request& rhs);
 
-        // init request
+        // init and clean request
         void                        init(std::string request);
+        void                        clean(void);
         
 
         // setters and getters
@@ -36,6 +37,7 @@ class Request
         std::string get_fragment() const{ return this->fragment;}
         int get_errcode() const{ return this->errcode;}
         std::string get_header(const std::string& key) const;
+
 
 	private:
 

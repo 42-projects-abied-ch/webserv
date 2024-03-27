@@ -2,6 +2,7 @@
 #include "ConfigDispatcher.hpp"
 #include "ConfigParser.hpp"
 #include "LocationInfo.hpp"
+#include "Server.hpp"
 #include "Utils.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -16,6 +17,7 @@
 #include <sys/socket.h>
 #include <vector>
 #include <arpa/inet.h>
+#include "ConfigSetters.hpp"
 
 // full initialization of the config in one constructor
 // 
@@ -52,6 +54,7 @@ Config::Config(const std::string& config_path)
 	_error_pages = dispatcher.get_error_pages();
 	_error_status_codes = Utils::get_error_status_codes();
 	initialize_location_setters();
+	initialize_server_setters();
 	set_servers(servers);
 }
 
@@ -80,10 +83,17 @@ void	Config::set_servers(std::map <int, std::map <std::string, std::vector <std:
 
 			configure_server_names(it->second, new_server, new_unique_values);
 			configure_port(it->second, new_server, new_unique_values);
-			configure_access_log(it->second, new_server);
 			configure_host(it->second, new_server, new_unique_values);
-			configure_client_max_body_size(it->second, new_server);
 			configure_locations(it->second, new_server);
+
+			for (_map::iterator itt = it->second.begin(); itt != it->second.end(); itt++)
+			{
+				if (_server_setters.find(itt->first) == _server_setters.end())
+				{
+					continue ;
+				}
+				(_server_setters[itt->first])(itt->second, new_server);
+			}
 
 			_servers.push_back(new_server);
 			_unique_values.insert(_unique_values.end(), new_unique_values.begin(), new_unique_values.end());
@@ -91,7 +101,7 @@ void	Config::set_servers(std::map <int, std::map <std::string, std::vector <std:
 		catch (const std::exception& e)
 		{
 			Log::log(e.what(), STD_ERR | ERROR_FILE);
-
+			delete new_server;
 			continue ;
 		}
 	}
@@ -104,19 +114,7 @@ void	Config::set_servers(std::map <int, std::map <std::string, std::vector <std:
 //
 // else:
 //			->	return empty string
-std::string	Config::extract_location_name(const std::string& current_map_key)
-{
-	std::string location_key_prefix = "location";
-    size_t found = current_map_key.find(location_key_prefix);
 
-    if (found != std::string::npos) 
-	{
-        size_t colon = current_map_key.find(":", found);
-        return current_map_key.substr(found + location_key_prefix.size() + 1, colon - (found + location_key_prefix.size()) - 1);
-    }
-
-    return ""; 
-}
 
 // initializes the location before setting the values
 //
@@ -163,7 +161,7 @@ void	Config::configure_locations(const _map& server, Server*& new_server)
 	for (_map::const_iterator it = server.begin(); it != server.end(); it++)
 	{
 
-		std::string name = extract_location_name(it->first);
+		std::string name = Utils::extract_location_name(it->first);
 
 		if (name.empty() == true)
 		{
@@ -176,7 +174,7 @@ void	Config::configure_locations(const _map& server, Server*& new_server)
 		{
 			try 
 			{
-				(new_location->*(setter->second))(it->second);
+				(setter->second)(it->second, new_location);
 			}
 			catch (const std::exception& e)
 			{
@@ -221,7 +219,7 @@ Config::location_setter_map::iterator	Config::configure_cgi(std::string key, Loc
 		new_location = new LocationInfo;
 	}
 	new_location->set_path(cgi_name);
-	new_location->set_is_cgi(true);
+	new_location->set_cgi(true);
 
 	std::string current_key = key.substr(key.find_last_of(":") + 1);
 	
@@ -319,67 +317,7 @@ void	Config::configure_port(_map& server, Server*& new_server, std::vector <std:
 	new_unique_values.push_back(port);
 }
 
-// validates access log from config
-//
-// 	if:		the file does not exist (meaning we can just create it)
-// 	or:		it exists and we have write access to it
-//			->	config valid, return the filename
-//
-// 	else:
-//			->	path invalid, log error & return default 
-void	Config::configure_access_log(_map& server, Server*& new_server)
-{
-	std::string access_log;
 
-	if (server.find("access_log") != server.end() && server["access_log"].empty() == false)
-	{
-		access_log = server["access_log"][0];
-
-		if (Utils::file_exists(access_log) == false or Utils::write_access(access_log) == true)
-		{
-			new_server->set_access_log(access_log);
-			return ;
-		}
-	}
-	Log::log("error: access log '" + access_log + "' could not be opened, falling back to 'access.log'\n", STD_ERR | ERROR_FILE);
-
-	new_server->set_access_log(ACCESS_LOG_DEFAULT);
-}
-
-// validates client max body size from config
-//
-// if:	the value is missing or empty
-//		->	log error & fall back to default
-//
-// else if: the value is too high
-//		->	log error & cap it to 10M
-//
-// else if: the value is invalid
-//		->	log error & fall back to default
-void	Config::configure_client_max_body_size(_map& server, Server*& new_server)
-{
-	if (server.find("client_max_body_size") == server.end() or server["client_max_body_size"].empty() == true)
-	{
-		Log::log("no client max body size config in server '" + new_server->get_server_name()[0] + "', falling back to default (1M)\n", STD_ERR | ERROR_FILE);
-		new_server->set_client_max_body_size(CLIENT_MAX_BODY_SIZE_DEFAULT);
-		return ;
-	}
-
-	std::string client_max_body_size = server["client_max_body_size"][0];
-	int	size = Utils::parse_client_max_body_size(client_max_body_size);
-
-	if (size > CLIENT_MAX_BODY_SIZE_MAX)
-	{
-		Log::log("error: " + client_max_body_size + ": client max body size too high, capping to 10M\n", STD_ERR | ERROR_FILE);
-		size = CLIENT_MAX_BODY_SIZE_MAX;
-	}
-	else if (size == -1)
-	{
-		Log::log("error: client max body size '" + client_max_body_size + "' is not valid, falling back to default (1M)\n", STD_ERR | ERROR_FILE);
-		size = CLIENT_MAX_BODY_SIZE_DEFAULT;
-	}
-	new_server->set_client_max_body_size(size);
-}
 
 std::vector <Server *>	Config::get_servers() const
 {
@@ -398,16 +336,26 @@ std::string	Config::get_error_page(const int key)
 	}
 }
 
+void	Config::initialize_server_setters()
+{
+	_server_setters["access_log"] = &Setters::configure_access_log;
+	_server_setters["client_max_body_size"] = &Setters::configure_client_max_body_size;
+	_server_setters["autoindex"] = &Setters::configure_autoindex;
+	_server_setters["root"] = &Setters::configure_root;
+	_server_setters["index"] = &Setters::configure_index;
+}
+
 void	Config::initialize_location_setters()
 {
-	_location_setters["root"] = &LocationInfo::set_root;
-	_location_setters["directory_listing"] = &LocationInfo::set_directory_listing;
-	_location_setters["allowed_methods"] = &LocationInfo::set_allowed_methods;
-	_location_setters["return"] = &LocationInfo::set_return;
-	_location_setters["alias"] = &LocationInfo::set_alias;
-	_location_setters["handler"] = &LocationInfo::set_cgi_path;
-	_location_setters["extension"] = &LocationInfo::set_cgi_extension;
-	_location_setters["autoindex"] = &LocationInfo::set_autoindex;
+	_location_setters["root"] = &Setters::set_root;
+	_location_setters["directory_listing"] = &Setters::set_directory_listing;
+	_location_setters["allowed_methods"] = &Setters::set_allowed_methods;
+	_location_setters["return"] = &Setters::set_return;
+	_location_setters["alias"] = &Setters::set_alias;
+	_location_setters["handler"] = &Setters::set_cgi_path;
+	_location_setters["extension"] = &Setters::set_cgi_extension;
+	_location_setters["autoindex"] = &Setters::set_autoindex;
+	_location_setters["index"] = &Setters::set_index;
 }
 
 Config::~Config() 
@@ -437,7 +385,10 @@ std::ostream &operator<<(std::ostream &out, const Config &config)
 	{
 		std::cout << "host: " << inet_ntoa((*it)->get_host_address()) << std::endl;
 		std::cout << "port: " << (*it)->get_port() << std::endl;
-		std::cout << "server_name: ";
+		std::cout << "server_name: " << (*it)->get_server_name()[0] << std::endl;
+		std::cout << "root: " << (*it)->get_root() << std::endl;
+		std::cout << "index: " << (*it)->get_index_path() << std::endl;
+		std::cout << "autoindex: " << (*it)->get_auto_index() << std::endl;
 		std::vector <std::string> server_name = (*it)->get_server_name();
 		for (std::vector <std::string>::iterator it = server_name.begin(); it != server_name.end(); it++)
 		{
@@ -460,7 +411,7 @@ std::ostream &operator<<(std::ostream &out, const Config &config)
 			{
 				std::cout << "\t\tdirectory listing: disabled" << std::endl;
 			}
-			if ((*it)->autoindex_enabled() == true)
+			if ((*it)->get_autoindex() == true)
 			{
 				std::cout << "\t\tautoindex: enabled" << std::endl;
 			}
@@ -475,10 +426,10 @@ std::ostream &operator<<(std::ostream &out, const Config &config)
 				std::cout << *it << " ";
 			}
 			std::cout << std::endl;
-			if ((*it)->is_cgi() == true)
+			if ((*it)->get_cgi() == true)
 			{
 				std::cout << "\t\tcgi_path: " << (*it)->get_cgi_path() << std::endl;
-				std::cout << "\t\tcgi_extension: " << (*it)->get_cgi_extension() << std::endl;
+				std::cout << "\t\tcgi_extension: " << (*it)->get_cgi_extensions()[0] << std::endl;
 			}
 		}
 	}
