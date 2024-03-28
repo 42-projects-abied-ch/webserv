@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <sys/stat.h>
+#include <dirent.h>
 #include "Node.hpp"
 #include "Request.hpp"
 #include "LocationInfo.hpp"
@@ -52,36 +54,44 @@ class Server : public Node
 		void								add_locations(std::vector <LocationInfo *> locations);
 		std::vector <LocationInfo *>		get_locations() const;
 		bool								is_fd_in_clients(int fd) const;
+		std::string							get_index_path() const;
+		void								set_index_path(const std::string& loc);
 // Server
 		std::string							respond(Request& rq);
 		int									get_error_code() const;
 		void								set_error_code(int err);
-		std::string							create_response(Request&);
-		std::string							response;
+		std::string							get_response() const;
+		void								set_response(const std::string& rs);
+		void								create_response(Request&);
+		void								reset();
 
 	private:
 
-		int									port;
+		int									_port;
 		int									_client_max_body_size;
-		std::vector <std::string>			server_name;
+		std::vector <std::string>			_server_name;
 		struct in_addr						_host_address;
 //		struct sockaddr_in					address;
-		bool								autoindex;
-		std::string							root;
-		std::string							error_log;
-		std::string							access_log;
-		std::vector <LocationInfo*>			locations;
-				void						init_status_strings();
-		void								init_content_types();
-		std::string							get_body(Request& rq);
-		int									process(Request &rq);
-		void								get_best_location_match(std::vector<LocationInfo*> locs, 
+		bool								_autoindex;
+		std::string							_response;
+		std::string							_index;
+		std::string							_root;
+		std::string							_error_log;
+		std::string							_access_log;
+		std::map<int, std::string>			_error_pages;
+		std::vector<LocationInfo*>			_locations;
+//Server
+		void								_init_status_strings();
+		void								_init_content_types();
+		std::string							_get_body(Request& rq);
+		int									_process(Request &rq, std::string& loc_path);
+		void								_get_best_location_match(std::vector<LocationInfo*> locs, 
 														Request& rq, std::string& best_match, 
 														LocationInfo* locinfo);
-		std::map<int, std::string>			status_string;
-		std::map<std::string, std::string>	content_type;
-		int									errcode;
-		Director*							director;
+		std::map<int, std::string>			_status_string;
+		std::map<std::string, std::string>	_content_type;
+		int									_errcode;
+		Director*							_director;
 };
 
 std::ostream& operator<<(std::ostream& os, const Server& server_info);

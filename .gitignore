@@ -7,3 +7,5 @@ compile_flags.txt
 vgcore*
 .vscode
 notes
+webserv.dSYM
+compile_commands.json

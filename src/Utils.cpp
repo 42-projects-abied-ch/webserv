@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include "Log.hpp"
+#include "Server.hpp"
 
 namespace Utils
 {
@@ -341,5 +342,50 @@ namespace Utils
 
 		oss << default_html;
 		return new_html_path;
+	}
+
+	std::string pathconcat(std::string s1, std::string s2)
+	{
+		if (s2 == "")
+			return s1; 
+		int l1 = s1.size();
+		if (s1[l1-1] != '/' && s2[0] != '/')
+			s1.append("/");
+		if (s1[l1-1] == '/' && s2[0] == '/')
+			s1.erase(l1-1);
+		return (s1 + s2);	
+	}
+
+	std::string	extract_location_name(const std::string& current_map_key)
+	{
+		std::string location_key_prefix = "location";
+		size_t found = current_map_key.find(location_key_prefix);
+
+		if (found != std::string::npos) 
+		{
+			size_t colon = current_map_key.find(":", found);
+			return current_map_key.substr(found + location_key_prefix.size() + 1, colon - (found + location_key_prefix.size()) - 1);
+		}
+
+		return "";
+	}
+
+	void	validate_required_server_values(Server* new_server)
+	{
+		if (new_server->get_server_name().empty() == true)
+		{
+			Log::log("error: server block missing server_name\n", STD_ERR | ERROR_FILE);
+			throw std::runtime_error("server block missing server_name");
+		}
+		if (new_server->get_host_address().s_addr == 0)
+		{
+			Log::log("error: server block missing host address\n", STD_ERR | ERROR_FILE);
+			throw std::runtime_error("server block missing host address");
+		}
+		if (new_server->get_port() == 0)
+		{
+			Log::log("error: server block missing port\n", STD_ERR | ERROR_FILE);
+			throw std::runtime_error("server block missing port");
+		}
 	}
 }
